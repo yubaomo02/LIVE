@@ -4,19 +4,18 @@ import re
 # 配置路径
 SOURCE_DIR = "zubo"
 RTP_TARGET_DIR = "py/rtp"
-LOG_FILE = "py/rtp/mapping_log.txt"
 
 def get_sort_key(line):
     """
-    智能排序与分类逻辑：
-    返回元组: (是否为SD, 核心名列表, 原始全名)
+    智能排序逻辑：(是否为SD, 核心名自然排序, 原始全名)
     """
+    if ',' not in line: return (1, [], line)
     channel_name = line.split(',')[0].upper()
     
-    # 1. 优先级判断：如果是 SD/标清，第一项设为 1，否则为 0。这样排序时 SD 会在最后。
+    # SD 优先级：带有标清/SD 的排在后面 (1)，高清排在前面 (0)
     is_sd = 1 if re.search(r'(SD|标清)', channel_name) else 0
     
-    # 2. 提取核心名用于自然排序 (CCTV1 < CCTV10)
+    # 提取数字进行自然排序 (CCTV1 < CCTV10)
     core_name = re.sub(r'(HD|SD|4K|8K|高清|标清|超清|超高|频道)$', '', channel_name).strip()
     parts = [int(s) if s.isdigit() else s for s in re.split(r'(\d+)', core_name)]
     
@@ -26,9 +25,11 @@ def extract_and_classify():
     if not os.path.exists(RTP_TARGET_DIR):
         os.makedirs(RTP_TARGET_DIR, exist_ok=True)
 
-    rtp_data_storage = {} # { isp: { rtp_url: [name1, name2] } }
+    # 存储结构：{ "北京联通": { "rtp://...": ["CCTV1", "CCTV1HD"] } }
+    rtp_data_storage = {} 
     
     if not os.path.exists(SOURCE_DIR):
+        print(f"❌ 找不到源目录: {SOURCE_DIR}")
         return
 
     for filename in os.listdir(SOURCE_DIR):
@@ -40,49 +41,53 @@ def extract_and_classify():
                 content = f.read()
         except: continue
 
-        pattern = re.compile(r'#EXTINF:-1.*?group-title="(.*?)",(.*?)\n.*?/rtp/(.*)')
-        matches = pattern.findall(content)
+    # 匹配模式：增加对 group-title 完整内容的提取
+    pattern = re.compile(r'#EXTINF:-1.*?group-title="(.*?)",(.*?)\n.*?/rtp/(.*)')
+    matches = pattern.findall(content)
 
-        for group_info, channel_name, rtp_addr in matches:
-            isp_name = group_info.split()[-1] if group_info.split() else "未知运营商"
-            clean_name = channel_name.strip().replace("-", "")
-            clean_rtp = f"rtp://{rtp_addr.strip()}"
-            
-            if isp_name not in rtp_data_storage:
-                rtp_data_storage[isp_name] = {}
-            
-            # --- 核心改进：以 RTP 地址为 Key 收集频道名 ---
-            if clean_rtp not in rtp_data_storage[isp_name]:
-                rtp_data_storage[isp_name][clean_rtp] = []
-            rtp_data_storage[isp_name][clean_rtp].append(clean_name)
+    for group_info, channel_name, rtp_addr in matches:
+        # --- 改进：提取省份 + 运营商 ---
+        # 去掉 group-title 中的多余空格，并替换为空白字符，合并为 "北京联通"
+        full_isp = group_info.strip().replace(" ", "") 
+        if not full_isp: 
+            full_isp = "未知地区"
 
-    # --- 写入与高级去重阶段 ---
-    print("💾 正在执行同源去重与 SD 沉底排序...")
+        clean_name = channel_name.strip().replace("-", "")
+        clean_rtp = f"rtp://{rtp_addr.strip()}"
+        
+        if full_isp not in rtp_data_storage:
+            rtp_data_storage[full_isp] = {}
+        
+        if clean_rtp not in rtp_data_storage[full_isp]:
+            rtp_data_storage[full_isp][clean_rtp] = []
+        rtp_data_storage[full_isp][clean_rtp].append(clean_name)
+
+    print(f"💾 正在分类生成文件，目标目录: {RTP_TARGET_DIR}")
+
     for isp_name, rtp_map in rtp_data_storage.items():
         processed_entries = []
         
         for rtp_url, names in rtp_map.items():
-            # 同源去重逻辑：如果一个地址对应多个名字（全纪实、全纪实HD）
-            if len(names) > 1:
-                # 优先保留不带 HD/高清 后缀的最短名字，使名字规范化
-                # 例如：['全纪实', '全纪实HD'] -> 保留 '全纪实'
-                best_name = sorted(names, key=lambda x: len(re.sub(r'(HD|高清|标清|SD)', '', x)))[0]
-                # 再次清理一次 best_name，去掉可能残留的后缀
-                best_name = re.sub(r'(HD|高清)$', '', best_name, flags=re.IGNORECASE).strip()
-            else:
-                best_name = names[0]
+            # 同源去重：优先选择名字最短的（通常是不带 HD 后缀的基准名）
+            best_name = sorted(names, key=lambda x: len(re.sub(r'(HD|高清|标清|SD)', '', x)))[0]
+            # 统一去掉末尾的 HD/高清，使列表整洁
+            best_name = re.sub(r'(HD|高清)$', '', best_name, flags=re.IGNORECASE).strip()
             
             processed_entries.append(f"{best_name},{rtp_url}")
 
-        # 应用自定义排序：自然排序 + SD 沉底
+        # 应用高级排序
         sorted_entries = sorted(processed_entries, key=get_sort_key)
         
-        target_file = os.path.join(RTP_TARGET_DIR, f"{isp_name}.txt")
+        # --- 改进：生成文件名 ---
+        # 确保文件名合法，去掉可能导致系统报错的字符
+        safe_filename = re.sub(r'[\\/:*?"<>|]', '', isp_name)
+        target_file = os.path.join(RTP_TARGET_DIR, f"{safe_filename}.txt")
+        
         with open(target_file, 'w', encoding='utf-8') as tf:
             for line in sorted_entries:
                 tf.write(line + "\n")
 
-    print(f"✅ 处理完成！同源 HD 已合并，SD 频道已移至文件末尾。")
+    print(f"✅ 处理完成！已按【地区运营商】分类生成 {len(rtp_data_storage)} 个文件。")
 
 if __name__ == "__main__":
     extract_and_classify()
