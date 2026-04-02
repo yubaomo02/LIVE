@@ -1,0 +1,26 @@
+name: Update Category List
+on:
+  schedule:
+    - cron: '0 2 * * *' # 每天凌晨 2 点运行
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+      - name: Install dependencies
+        run: pip install requests
+      - name: Run script
+        run: python py/convert_m3u.py
+      - name: Commit and Push
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add live_by_category.txt
+          git commit -m "Auto update category list" || exit 0
+          git push
