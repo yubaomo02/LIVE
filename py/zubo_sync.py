@@ -11,7 +11,7 @@ OUTPUT_DIR = "temp_zubo"
 
 # GitHub 配置
 GITHUB_TOKEN = os.getenv("LIVE_TOKEN")
-GITHUB_REPO = "kenye201/LIVE"
+GITHUB_REPO = "yubaomo02/LIVE"
 GITHUB_BRANCH = "main"
 GITHUB_FOLDER = "zubo"
 # --- --- --- ---
