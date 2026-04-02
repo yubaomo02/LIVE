@@ -6,7 +6,7 @@ from urllib.parse import urlparse
 
 # ================= 配置区 =================
 SOURCE_URL = "https://spider.rer.de5.net/sub?57hmNXHI=txt"
-GITHUB_REPO = "kenye201/LIVE"
+GITHUB_REPO = "yubaomo02/LIVE"
 GITHUB_BRANCH = "main"
 
 # 🔑 核心改进：从环境变量读取 Token，安全第一
