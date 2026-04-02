@@ -1,0 +1,52 @@
+name: 组播 (清理失效源)
+
+on:
+  schedule:
+    - cron: '0 */4 * * *' 
+  workflow_dispatch:
+
+jobs:
+  maintenance:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 设置 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: 安装依赖
+        run: pip install requests
+
+      # 1. 运行你的清理脚本
+      - name: Clean up invalid Zubo files
+        run: python py/cleanup_zubo.py
+
+      # 2. 运行新增的合并脚本
+      - name: Merge Zubo files into zuboall.m3u
+        run: python py/zubo_merge.py
+
+      - name: Commit and Push
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          
+          # 关键新增：禁止 Git 对中文文件名进行转义
+          git config --global core.quotepath false
+          
+          # 关键改动：使用 -A 选项
+          git add -A zubo/
+          
+          if git diff --staged --quiet; then
+            echo "没有发现任何文件变动（无需删除或更新）"
+          else
+            git commit -m "自动清理失效源并重新合成 zuboall.m3u"
+            git push
+          fi
