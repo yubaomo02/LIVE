@@ -22,8 +22,6 @@ jobs:
       - name: Run RTP Extract Script
         run: python py/zubo_rtp.py
 
-      - name: Run RTP Extract Script
-        run: python py/hotel_rules.py
 
       - name: Commit and Push
         run: |
