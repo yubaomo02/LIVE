@@ -3,12 +3,10 @@ import re
 from collections import OrderedDict
 
 # --- 配置区 ---
-# 远程 M3U 数据源
 M3U_URL = "https://raw.githubusercontent.com/yubaomo02/LIVE/refs/heads/main/zubo/zuboall.m3u"
-# 输出文件名
-OUTPUT_FILE = "live_by_category.txt"
+OUTPUT_FILE = "live.txt"
 
-# 频道分类逻辑 (使用 OrderedDict 保证输出顺序)
+# 频道分类逻辑
 CATEGORIES = OrderedDict([
     ("央视频道", ["CCTV1", "CCTV2", "CCTV3", "CCTV4", "CCTV4欧洲", "CCTV4美洲", "CCTV5", "CCTV5+", "CCTV6", "CCTV7", "CCTV8", "CCTV9", "CCTV10", "CCTV11", "CCTV12", "CCTV13", "CCTV14", "CCTV15", "CCTV16", "CCTV17", "CCTV4K", "CCTV8K", "兵器科技", "风云音乐", "风云足球", "风云剧场", "怀旧剧场", "第一剧场", "女性时尚", "世界地理", "央视台球", "高尔夫网球", "央视文化精品", "卫生健康", "电视指南"]),
     ("卫视频道", ["湖南卫视", "浙江卫视", "江苏卫视", "东方卫视", "深圳卫视", "北京卫视", "广东卫视", "广西卫视", "东南卫视", "海南卫视", "河北卫视", "河南卫视", "湖北卫视", "江西卫视", "四川卫视", "重庆卫视", "贵州卫视", "云南卫视", "天津卫视", "安徽卫视", "山东卫视", "辽宁卫视", "黑龙江卫视", "吉林卫视", "内蒙古卫视", "宁夏卫视", "山西卫视", "陕西卫视", "甘肃卫视", "青海卫视", "新疆卫视", "西藏卫视", "三沙卫视", "山东教育卫视", "中国教育1台", "中国教育2台", "中国教育3台", "中国教育4台", "早期教育"]),
@@ -18,74 +16,74 @@ CATEGORIES = OrderedDict([
     ("安徽", ["安徽经济生活","安徽公共频道","安徽国际频道","安徽农业科教","安徽影视频道","安徽综艺体育","安庆经济生活","安庆新闻综合"])
 ])
 
-def download_m3u(url):
-    print(f"正在获取 M3U 文件: {url}")
-    try:
-        r = requests.get(url, timeout=30)
-        r.encoding = 'utf-8'
-        return r.text
-    except Exception as e:
-        print(f"下载失败: {e}")
-        return ""
+def clean_suffix(suffix):
+    """
+    清洗后缀的核心逻辑：
+    利用正则去掉下划线开头的数字、点号组成的 IP 和端口信息
+    """
+    if not suffix: return ""
+    # 匹配 _ 后面跟着数字、点或下划线的情况，例如 _114.243.96.9_8888 或 _114_243_96_9
+    cleaned = re.sub(r'_[0-9\._]+$', '', suffix)
+    return cleaned.strip()
 
 def parse_m3u(content):
-    """解析 m3u，提取频道名、地区运营商后缀和 URL"""
     results = []
     lines = content.split('\n')
     for i in range(len(lines)):
         line = lines[i].strip()
         if line.startswith("#EXTINF:"):
-            # 获取频道名和 group-title 里的后缀
-            # 格式通常是: #EXTINF:-1 group-title="山东联通",CCTV1
+            # 提取 group-title
             suffix = ""
             group_match = re.search(r'group-title="(.*?)"', line)
             if group_match:
                 suffix = group_match.group(1)
             
+            # 清洗后缀，去掉 ID 和端口
+            final_suffix = clean_suffix(suffix)
+            
             name = line.split(',')[-1].strip()
             
-            # 查找下一行 URL
             if i + 1 < len(lines):
                 url = lines[i+1].strip()
                 if url.startswith("http"):
-                    results.append({"name": name, "url": url, "suffix": suffix})
+                    results.append({
+                        "name": name, 
+                        "url": url, 
+                        "suffix": final_suffix
+                    })
     return results
 
-def process_classification():
-    content = download_m3u(M3U_URL)
-    if not content: return
-    
+def process():
+    try:
+        r = requests.get(M3U_URL, timeout=30)
+        r.encoding = 'utf-8'
+        content = r.text
+    except: return
+
     all_channels = parse_m3u(content)
-    
     output_lines = []
-    
-    # 按照配置的分类顺序进行匹配
+
     for cat_name, channel_list in CATEGORIES.items():
         matched_results = []
-        
         for target_name in channel_list:
-            # 遍历所有解析出的频道，模糊或精准匹配
             for channel in all_channels:
-                # 去掉频道名里的干扰词(HD, 高清, [1080p]等)进行比对
+                # 模糊名匹配
                 clean_name = re.sub(r'\(.*?\)|\[.*?\]|HD|高清|标清|超清', '', channel['name']).strip()
-                
                 if clean_name == target_name:
-                    # 格式：频道名,URL$地区运营商
+                    # 拼接：频道名,URL$北京联通
                     line = f"{channel['name']},{channel['url']}${channel['suffix']}"
                     matched_results.append(line)
         
-        # 如果该分类下有频道，则写入
         if matched_results:
             output_lines.append(f"{cat_name},#genre#")
-            # 内部简单去重
+            # 去重并保持顺序
             unique_results = list(dict.fromkeys(matched_results))
             output_lines.extend(unique_results)
-            output_lines.append("") # 分类间留空行
+            output_lines.append("")
 
     with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
         f.write("\n".join(output_lines))
-    
-    print(f"✅ 转换完成！文件已保存至: {OUTPUT_FILE}")
+    print(f"✅ 处理完成，后缀已精简。")
 
 if __name__ == "__main__":
-    process_classification()
+    process()
