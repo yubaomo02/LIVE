@@ -1,7 +1,5 @@
 name: Update Category List
 on:
-  schedule:
-    - cron: '0 2 * * *' # 每天凌晨 2 点运行
   workflow_dispatch:
 
 jobs:
