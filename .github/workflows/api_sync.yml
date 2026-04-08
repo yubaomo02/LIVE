@@ -1,0 +1,37 @@
+name: IPTV Multi-Source Sync (API Mode)
+
+on:
+  schedule:
+    - cron: '10 20 * * *'
+  workflow_dispatch:
+jobs:
+  sync_all:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install Dependencies
+        run: pip install requests
+
+      - name: Run Hotel Sync
+        env:
+          LIVE_TOKEN: ${{ secrets.LIVE_TOKEN }}
+        run: |
+          echo "📥 正在运行 Hotel 同步..."
+          # 运行第一个脚本
+          python py/hotel_sync.py
+
+      - name: Run Zubo Sync
+        env:
+          LIVE_TOKEN: ${{ secrets.LIVE_TOKEN }}
+        run: |
+          echo "📥 正在运行 Zubo 同步..."
+          # 运行第二个脚本
+          python py/zubo_sync.py
