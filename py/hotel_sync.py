@@ -5,7 +5,7 @@ import time
 from urllib.parse import urlparse
 
 # ================= 配置区 =================
-SOURCE_URL = "https://spider.rer.de5.net/sub?57hmNXHI=txt"
+SOURCE_URL = "https://spider.rer.de5.net/sub?sZXPG49v=txt"
 GITHUB_REPO = "yubaomo02/LIVE"
 GITHUB_BRANCH = "main"
 
