@@ -6,7 +6,7 @@ import base64
 import time
 
 # --- 配置区 ---
-SOURCE_URL = "https://spider.rer.de5.net/sub?3Rkha5PK=txt"
+SOURCE_URL = "https://spider.rer.de5.net/sub?52GQylQw=txt"
 OUTPUT_DIR = "temp_zubo"
 
 # GitHub 配置
