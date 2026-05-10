@@ -8,9 +8,9 @@ import time
 # --- 配置区 ---
 # 💡 改进：支持多个源链接
 SOURCE_URLS = [
-    "https://spider.rer.de5.net/sub?52GQylQw=txt",
-    "这里填入第二个源链接",
-    "这里填入第三个源链接"
+    "https://iptv-spider-production.up.railway.app/sub?21KOJtUp=txt",
+    "https://boyu.ccwu.cc/sub2"
+
 ]
 OUTPUT_DIR = "temp_zubo"
 
