@@ -6,7 +6,12 @@ import base64
 import time
 
 # --- 配置区 ---
-SOURCE_URL = "https://spider.rer.de5.net/sub?52GQylQw=txt"
+# 💡 改进：支持多个源链接
+SOURCE_URLS = [
+    "https://spider.rer.de5.net/sub?52GQylQw=txt",
+    "这里填入第二个源链接",
+    "这里填入第三个源链接"
+]
 OUTPUT_DIR = "temp_zubo"
 
 # GitHub 配置
@@ -29,7 +34,7 @@ def translate_isp(raw_isp):
 
 def get_ip_info(ip):
     try:
-        # 增加延迟防止 IP-API 封禁 (保持每秒1次左右)
+        # 增加延迟防止 IP-API 封禁
         time.sleep(1)
         response = requests.get(f"http://ip-api.com/json/{ip}?lang=zh-CN", timeout=5)
         data = response.json()
@@ -53,7 +58,6 @@ def upload_to_github(file_path, file_name):
         "Accept": "application/vnd.github.v3+json"
     }
     
-    # 检查 SHA
     get_res = requests.get(url, headers=headers)
     sha = None
     if get_res.status_code == 200:
@@ -72,7 +76,6 @@ def upload_to_github(file_path, file_name):
 
     put_res = requests.put(url, headers=headers, json=data)
     if put_res.status_code in [200, 201]:
-        # 💡 这里增加了同步成功的提示
         print(f"✅ GitHub 同步成功: {file_name}")
     else:
         print(f"❌ GitHub 同步失败 ({file_name}): {put_res.status_code}")
@@ -85,29 +88,39 @@ def main():
     if os.path.exists(OUTPUT_DIR): shutil.rmtree(OUTPUT_DIR)
     os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-    print(f"📥 正在获取源数据: {SOURCE_URL}")
-    try:
-        r = requests.get(SOURCE_URL, timeout=15)
-        r.encoding = 'utf-8'
-        lines = r.text.split('\n')
-    except Exception as e:
-        print(f"❌ 获取源失败: {e}"); return
-
     ip_groups = {}
-    for line in lines:
-        if ',' not in line or "#genre#" in line: continue
-        parts = line.strip().split(',', 1)
-        if len(parts) < 2: continue
-        name, url = parts[0], parts[1]
-        
-        match = re.search(r'://([\d\.]+):(\d+)', url)
-        if match:
-            host = match.group(1)
-            port = match.group(2)
-            key = f"{host}:{port}"
-            if key not in ip_groups:
-                # 💡 在这里增加查询 IP 的实时反馈
-                print(f"🔍 查询 IP: {host} ... ", end="", flush=True)
+    
+    # 💡 改进：多源循环逻辑
+    for source_url in SOURCE_URLS:
+        print(f"\n📥 正在获取源数据: {source_url}")
+        try:
+            r = requests.get(source_url, timeout=15)
+            r.encoding = 'utf-8'
+            lines = r.text.split('\n')
+        except Exception as e:
+            print(f"❌ 获取源失败 ({source_url}): {e}")
+            continue
+
+        for line in lines:
+            line = line.strip()
+            if ',' not in line or "#genre#" in line: continue
+            parts = line.split(',', 1)
+            if len(parts) < 2: continue
+            name, url = parts[0], parts[1]
+            
+            match = re.search(r'://([\d\.]+):(\d+)', url)
+            if match:
+                host = match.group(1)
+                port = match.group(2)
+                key = f"{host}:{port}"
+                
+                # --- 核心改进：跨源去重逻辑 ---
+                # 如果这个 IP:Port 在之前的源或当前源中处理过，直接跳过整个节点
+                if key in ip_groups:
+                    continue 
+                # ----------------------------
+                
+                print(f"🔍 发现新组播 IP: {host} ... ", end="", flush=True)
                 info = get_ip_info(host)
                 print(f"结果: {info}")
                 
@@ -115,27 +128,26 @@ def main():
                     "filename": f"{info}_{host.replace('.', '_')}_{port}.m3u",
                     "channels": []
                 }
-            ip_groups[key]["channels"].append({"name": name, "url": url})
+                # 组播通常一个 IP 下会有多个频道，我们需要把当前行的频道存入
+                ip_groups[key]["channels"].append({"name": name, "url": url})
 
     if not ip_groups:
-        print("⚠️ 未解析到有效数据")
+        print("\n⚠️ 未从所有源中解析到任何新的有效数据")
         return
 
-    print(f"🚀 开始通过 API 同步到 GitHub 库 (目标文件夹: {GITHUB_FOLDER})...")
+    print(f"\n🚀 开始上传 {len(ip_groups)} 个新发现的 IP 节点到 GitHub...")
     for key, data in ip_groups.items():
         filename = data["filename"]
         filepath = os.path.join(OUTPUT_DIR, filename)
         
-        # 写入临时文件
         with open(filepath, "w", encoding="utf-8") as f:
             f.write("#EXTM3U\n")
             for ch in data["channels"]:
                 f.write(f"#EXTINF:-1,{ch['name']}\n{ch['url']}\n")
         
-        # API 上传
         upload_to_github(filepath, filename)
 
-    print("\n✨ Zubo 任务全部完成！")
+    print("\n✨ Zubo 多源同步任务全部完成！")
 
 if __name__ == "__main__":
     main()

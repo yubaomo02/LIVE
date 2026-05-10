@@ -5,7 +5,10 @@ import time
 from urllib.parse import urlparse
 
 # ================= 配置区 =================
-SOURCE_URL = "https://spider.rer.de5.net/sub?sZXPG49v=txt"
+SOURCE_URLS = [
+    "https://boyu.ccwu.cc/sub1",
+    "https://iptv-spider-production.up.railway.app/sub?rGzNKN5g=txt"
+]
 GITHUB_REPO = "yubaomo02/LIVE"
 GITHUB_BRANCH = "main"
 
@@ -71,39 +74,57 @@ def upload_to_github(filename, content):
         print(f"❌ GitHub 同步失败 ({filename}): {put_r.status_code}")
 
 def run():
-    print(f"📥 正在获取源数据: {SOURCE_URL}")
-    try:
-        res = requests.get(SOURCE_URL, timeout=15)
-        lines = res.text.split('\n')
-    except Exception as e:
-        print(f"❌ 获取失败: {e}")
-        return
-
     ip_groups = {}
-    for line in lines:
-        line = line.strip()
-        if "," not in line or "#genre#" in line: continue
+    
+    for url in SOURCE_URLS:
+        print(f"📥 正在获取源数据: {url}")
         try:
-            name, url = line.split(',', 1)
-            host = urlparse(url).netloc
-            if not host: continue
-            
-            if host not in ip_groups:
+            res = requests.get(url, timeout=15)
+            res.encoding = 'utf-8' 
+            lines = res.text.split('\n')
+        except Exception as e:
+            print(f"❌ 获取失败 ({url}): {e}")
+            continue 
+
+        for line in lines:
+            line = line.strip()
+            if "," not in line or "#genre#" in line: continue
+            try:
+                name, stream_url = line.split(',', 1)
+                host = urlparse(stream_url).netloc
+                if not host: continue
+                
+                # --- 核心改进：跳过逻辑 ---
+                # 如果当前 host (IP+端口) 已经在 ip_groups 中，
+                # 说明在之前的链接（第一个链接）已经查询过并处理了该 IP。
+                if host in ip_groups:
+                    continue # 直接跳过，不解析也不追加
+                # ------------------------
+
+                # 如果走到这一步，说明是一个全新的 IP
                 ip = host.split(':')[0]
                 port = host.split(':')[1] if ':' in host else "80"
-                print(f"🔍 查询 IP: {ip} ... ", end="", flush=True)
+                
+                print(f"🔍 发现新 IP: {ip} ... ", end="", flush=True)
                 loc = get_ip_location(ip)
                 print(f"结果: {loc}")
-                ip_groups[host] = {"file": f"{loc}_{ip.replace('.', '_')}_{port}.m3u", "content": "#EXTM3U\n"}
-            
-            ip_groups[host]["content"] += f'#EXTINF:-1 group-title="Hotel_{host}",{name}\n{url.strip()}\n'
-        except: continue
+                
+                ip_groups[host] = {
+                    "file": f"{loc}_{ip.replace('.', '_')}_{port}.m3u", 
+                    "content": "#EXTM3U\n"
+                }
+                
+                # 写入第一个发现的频道信息
+                channel_info = f'#EXTINF:-1 group-title="Hotel_{host}",{name}\n{stream_url.strip()}\n'
+                ip_groups[host]["content"] += channel_info
+                    
+            except: continue
 
     if not ip_groups:
-        print("⚠️ 未解析到有效数据")
+        print("⚠️ 未解析到任何新数据")
         return
 
-    print(f"🚀 开始通过 API 同步到 GitHub 库 (目标文件夹: {REMOTE_FOLDER})...")
+    print(f"🚀 开始同步到 GitHub (共 {len(ip_groups)} 个新 IP 节点)...")
     for host, data in ip_groups.items():
         upload_to_github(data["file"], data["content"])
 
