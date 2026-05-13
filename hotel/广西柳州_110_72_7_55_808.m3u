@@ -1,0 +1,3 @@
+#EXTM3U
+#EXTINF:-1 group-title="Hotel_110.72.7.55:808",CCTV5+
+http://110.72.7.55:808/hls/16/index.m3u8
