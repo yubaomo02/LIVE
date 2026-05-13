@@ -1,3 +1,3 @@
 #EXTM3U
-#EXTINF:-1 group-title="Hotel_183.7.151.41:808",CCTV2
-http://183.7.151.41:808/hls/114/index.m3u8
+#EXTINF:-1 group-title="Hotel_183.7.151.41:808",CCTV3
+http://183.7.151.41:808/hls/115/index.m3u8
