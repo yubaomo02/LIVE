@@ -1,0 +1,3 @@
+#EXTM3U
+#EXTINF:-1 tvg-name="CCTV1" tvg-logo="https://tb.yubo.qzz.io/logo/CCTV1.png" group-title="Hotel_36.158.75.239:8088",CCTV1
+http://36.158.75.239:8088/tsfile/live/0001_1.m3u8?key=txiptv&playlive=1&authid=0
