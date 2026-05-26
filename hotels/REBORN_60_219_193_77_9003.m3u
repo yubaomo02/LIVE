@@ -1,3 +1,0 @@
-#EXTM3U
-#EXTINF:-1 tvg-name="CCTV1" tvg-logo="https://tb.yubo.qzz.io/logo/CCTV1.png" group-title="Hotel_60.219.193.77:9003",CCTV1
-http://60.219.193.77:9003/hls/1/index.m3u8
