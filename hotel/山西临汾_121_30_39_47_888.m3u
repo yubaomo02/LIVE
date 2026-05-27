@@ -1,0 +1,3 @@
+#EXTM3U
+#EXTINF:-1 group-title="Hotel_121.30.39.47:888",CCTV1
+http://121.30.39.47:888/tsfile/live/0001_1.m3u8?key=txiptv&playlive=1&authid=0
