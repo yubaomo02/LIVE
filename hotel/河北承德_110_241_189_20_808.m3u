@@ -1,0 +1,3 @@
+#EXTM3U
+#EXTINF:-1 group-title="Hotel_110.241.189.20:808",CCTV1
+http://110.241.189.20:808/hls/1/index.m3u8
