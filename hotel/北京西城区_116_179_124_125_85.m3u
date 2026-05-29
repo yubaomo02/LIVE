@@ -1,0 +1,3 @@
+#EXTM3U
+#EXTINF:-1 group-title="Hotel_116.179.124.125:85",CCTV1
+http://116.179.124.125:85/tsfile/live/0001_1.m3u8?key=txiptv&playlive=1&authid=0
