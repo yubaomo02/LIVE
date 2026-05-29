@@ -1,3 +1,3 @@
 #EXTM3U
-#EXTINF:-1 group-title="Hotel_171.8.84.105:85",CCTV1
-http://171.8.84.105:85/tsfile/live/0001_1.m3u8?key=txiptv&playlive=1&authid=0
+#EXTINF:-1 group-title="Hotel_171.8.84.105:85",贵州卫视
+http://171.8.84.105:85/tsfile/live/0120_1.m3u8?key=txiptv&playlive=1&authid=0
