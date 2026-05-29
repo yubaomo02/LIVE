@@ -1,0 +1,3 @@
+#EXTM3U
+#EXTINF:-1 group-title="Hotel_42.237.157.71:9003",CCTV1
+http://42.237.157.71:9003/hls/1/index.m3u8
