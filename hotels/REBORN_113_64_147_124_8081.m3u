@@ -1,0 +1,3 @@
+#EXTM3U
+#EXTINF:-1 tvg-name="南山有线" tvg-logo="https://tb.yubo.qzz.io/logo/南山有线.png" group-title="Hotel_113.64.147.124:8081",南山有线
+http://113.64.147.124:8081/hls/18/index.m3u8
